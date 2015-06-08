@@ -24,6 +24,7 @@
 #include <vector> /* vector */
 #include <assert.h>
 #include <stdlib.h> /* exit() */
+#include <omp.h> /* pragma omp parallel for */
 
 #include <logging.hpp> 
 #include <mesh.hpp>
@@ -331,6 +332,7 @@ Mesh createMesh(const std::vector<unsigned> &triangleIndices,
   // GPU variables
   double totalSurface = 0.;
 
+  #pragma omp parallel for reduction(+:totalSurface)
   for(unsigned i=0;i<numberOfTriangles;++i){
     totalSurface+=double(surfacesVector.at(i));	
   }
@@ -341,6 +343,8 @@ Mesh createMesh(const std::vector<unsigned> &triangleIndices,
   std::vector<double> hostCenters(xOfTriangleCenter.begin(), xOfTriangleCenter.end());
   hostCenters.insert(hostCenters.end(),yOfTriangleCenter.begin(),yOfTriangleCenter.end());
   std::vector<float> totalReflectionAngles(refractiveIndices.size()/2,0);
+
+  #pragma omp parallel for
   for(unsigned i=0;i<refractiveIndices.size();i+=2){
     totalReflectionAngles.at(i/2) = (180. / M_PI *  asin(refractiveIndices.at(i+1) / refractiveIndices.at(i)));
   }

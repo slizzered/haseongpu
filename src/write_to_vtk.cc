@@ -24,6 +24,7 @@
 #include <iomanip> /* std::fixed, std::setprecision() */
 #include <string> /* std::to_string() */
 #include <time.h> /* time, time_t */
+#include <omp.h> /* pragma omp parallel for */
 
 #include <boost/filesystem.hpp> /* fs::path */
 #include <boost/filesystem/fstream.hpp> /* fs::ofstream, fs::ifstream */
@@ -195,6 +196,7 @@ std::vector<double> compareVtk(std::vector<double> compare, const fs::path filen
   }
   dout(V_INFO) << "Compare solution with " << filename << std::endl;
 
+  #pragma omp parallel for reduction (+:aseTotal)
   for(unsigned i = 0; i < compare.size(); ++i){
     aseTotal += compare.at(i);
   }
