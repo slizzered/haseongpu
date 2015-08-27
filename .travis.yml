@@ -12,10 +12,11 @@ addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
+    - kalakris-cmake
     packages:
     - g++-4.9
     - make
-    - cmake
+    - cmake-3.0.1
     - cuda
     - openmpi
     - libboost-filesystem-dev
