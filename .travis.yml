@@ -1,0 +1,44 @@
+#os: linux
+
+sudo: false
+#sudo: required
+
+language: cpp
+
+#services:
+#  - docker
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - g++-4.9
+    - make
+    - cmake
+    - cuda
+    - openmpi
+    - libboost-filesystem-dev
+    - libboost-mpi-dev
+    - libboost-program-options-dev
+    - libboost-system-dev
+
+#before_install:
+#    - docker pull l3iggs/archlinux
+#    - docker run -d -p 127.0.0.1:80:4567 l3iggs/archlinu
+
+
+      #
+      #before_install:
+      #  - docker pull artanis/trusty-cuda
+      #  - docker run -d -p 127.0.0.1:80:4567 artanis/trusty-cuda
+      #  - docker ps -a
+      #
+
+
+script:
+  - date
+  - mkdir build_tmp && cd build_tmp
+  - cmake -D CUDA_TOOLKIT_ROOT_DIR=/opt/cuda ..
+  - make
+  - ls -l
