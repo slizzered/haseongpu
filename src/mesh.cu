@@ -156,29 +156,120 @@ __device__ int Mesh::getNeighbor(unsigned triangle, int edge) const{
  * Uses a Mersenne Twister PRNG and Barycentric coordinates to generate a
  * random position inside a given triangle in a specific depth
  */
-__device__ Point Mesh::genRndPoint(unsigned triangle, unsigned level, curandStateMtgp32 *globalState) const{
-  Point startPoint = {0,0,0};
-  double u = curand_uniform_double(&globalState[blockIdx.x]);
-  double v = curand_uniform_double(&globalState[blockIdx.x]);
+__device__ Point Mesh::genRndPoint(const unsigned triangle, const unsigned level, curandStateMtgp32 *globalState) const{
+  Point startPoint = {0.,0.,0.};
+  double u = 1-curand_uniform_double(&globalState[blockIdx.x]);
+  double v = 1-curand_uniform_double(&globalState[blockIdx.x]);
 
-  if((u+v)>1)
+  if((u+v)>1.)
   {
-    u = 1-u;
-    v = 1-v;
+    u = 1.-u;
+    v = 1.-v;
   }
-  double w = 1-u-v;
-  int t1 = trianglePointIndices[triangle];
-  int t2 = trianglePointIndices[triangle + numberOfTriangles];
-  int t3 = trianglePointIndices[triangle + 2 * numberOfTriangles];
+  const double w = 1.-u-v;
+  const int t1 = trianglePointIndices[triangle];
+  const int t2 = trianglePointIndices[triangle + numberOfTriangles];
+  const int t3 = trianglePointIndices[triangle + 2 * numberOfTriangles];
 
   // convert the random startpoint into coordinates
-  startPoint.z = (level + curand_uniform_double(&globalState[blockIdx.x])) * thickness;
+  startPoint.z = (double(level) + 1-curand_uniform_double(&globalState[blockIdx.x])) * thickness;
   startPoint.x = (points[t1] * u) + (points[t2] * v) + (points[t3] * w);
   startPoint.y = (points[t1+numberOfPoints] * u) + (points[t2+numberOfPoints] * v) + (points[t3+numberOfPoints] * w);
 
   return startPoint;
 }
 
+
+/** 
+ * @brief Helper function for isPointInTriangle
+ */
+__device__ __forceinline__ int sign(const Point p1, const TwoDimPoint p2, const TwoDimPoint p3){
+  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+}
+
+/**
+ * @brief Determines if a point is located inside a triangle
+ *
+ * @param p the 3D point, only x and y coordinates are used
+ * @param triangle the number of the triangle to check
+ *
+ * @return returns true if the point is inside the triangle
+ */
+__device__ bool Mesh::isPointInTriangle(const Point p, const unsigned triangle) const {
+  const int t1 = trianglePointIndices[triangle];
+  const int t2 = trianglePointIndices[triangle + numberOfTriangles];
+  const int t3 = trianglePointIndices[triangle + 2 * numberOfTriangles];
+
+  const TwoDimPoint a{points[t1], points[t1+numberOfPoints]};
+  const TwoDimPoint b{points[t2], points[t2+numberOfPoints]};
+  const TwoDimPoint c{points[t3], points[t3+numberOfPoints]};
+
+  const bool b1 = sign(p, a, b) < 0.;
+  const bool b2 = sign(p, b, c) < 0.;
+  const bool b3 = sign(p, c, a) < 0.;
+  return (b1 == b2) && (b2 == b3);
+}
+
+/** 
+ * @brief Determines if a point is located inside a prism
+ *
+ * @param p the 3D point to check
+ * @param triangle the number of the triangle that is the base of the prism
+ * @param level the (lower) level of the prism
+ *
+ * @return returns true if p is inside the given prism
+ */
+__device__ bool Mesh::isPointInPrism(const Point p, const unsigned triangle, const unsigned level) const {
+  /* const TwoDimPoint tdp {p.x, p.y}; */
+  const bool inTriangle = isPointInTriangle(p, triangle);
+  const bool b1 = p.z >= double(level) * thickness;
+  const bool b2 = p.z <= double(level+1) * thickness;
+  return inTriangle && b1 && b2;
+}
+
+
+/**
+ * @brief Determines if a point is one of the vertices of a prism
+ *
+ * @param p the 3D point to check
+ * @param triangle the number of the triangle that is the base of the prism
+ * @param level the (lower) level of the prism
+ *
+ * @return returns true if p is a vertex of the given prism
+ *
+ * Since floating-point comparisons are done within an epsilon,
+ * the function may return true if a point is extremely close to
+ * one of the prism's vertices.
+ */
+__device__ bool Mesh::isVertexOfPrism(const Point p, const unsigned triangle, const unsigned level) const{
+  const float diff = 0.0001;
+  if(fabs(p.z - static_cast<double>(level)*thickness) < diff
+      || fabs(p.z - static_cast<double>(level+1) * thickness) < diff) {
+    for(unsigned i=0; i<3; ++i){
+      const unsigned t = trianglePointIndices[triangle + i*numberOfTriangles];
+      if(fabs(points[t] - p.x) < diff && fabs(points[t+numberOfPoints] - p.y) < diff)
+        return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * @brief Converts the vertex of a prism to a cartesian 3D point
+ *
+ * @param triangle the triangle which is the base of the prism that holds the vertex
+ * @param level the level (inside the mesh) of the vertex
+ * @param vertex the number (0-5) of the vertex. Numbers greater than 5 result in undefined behavior.
+ *
+ * vertices 0, 1 and 2 are the lower ones, vertices 3, 4 and 5
+ * are the vertices of the upper surface of the prism
+ */
+__device__ Point Mesh::getVertexCoordinates(const unsigned triangle, const unsigned level, const unsigned vertex) const{
+  const int t = trianglePointIndices[triangle + (vertex % 3) * numberOfTriangles];
+  Point p = {points[t], points[t+numberOfPoints], static_cast<double>(level)*thickness};
+  if(vertex > 2) p.z = double(level+1)*thickness;
+  return p;
+}
 
 /**
  * @brief get a betaVolume for a specific triangle and level

@@ -141,7 +141,6 @@ __global__ void calcSampleGainSumWithReflection(curandStateMtgp32* globalState,
     gainSumTemp       += gain;
     gainSumSquareTemp += gain * gain;
 
-
   }
   atomicAdd(&(gainSum[0]), float(gainSumTemp));
   atomicAdd(&(gainSumSquare[0]), float(gainSumSquareTemp));
@@ -176,9 +175,13 @@ __global__ void calcSampleGainSum(curandStateMtgp32* globalState,
 
     // Get triangle/prism to start ray from
     unsigned startPrism             = indicesOfPrisms[rayNumber];
+    const unsigned _startPrism = startPrism;
     unsigned startLevel             = startPrism/mesh.numberOfTriangles;
+    const unsigned _startLevel = startLevel;
     unsigned startTriangle          = startPrism - (mesh.numberOfTriangles * startLevel);
+    const unsigned _startTriangle = startTriangle;
     Point startPoint                = mesh.genRndPoint(startTriangle, startLevel, globalState);
+    Point _startPoint = startPoint;
     Ray ray                         = generateRay(startPoint, samplePoint);
 
 	// get a random index in the wavelength array
@@ -194,6 +197,32 @@ __global__ void calcSampleGainSum(curandStateMtgp32* globalState,
 
     gainSumTemp       += gain;
     gainSumSquareTemp += gain * gain;
+
+    if(gain > 10000){
+        Point v0 =mesh.getVertexCoordinates(_startTriangle,_startLevel,0);
+        Point v1 =mesh.getVertexCoordinates(_startTriangle,_startLevel,1);
+        Point v2 =mesh.getVertexCoordinates(_startTriangle,_startLevel,5);
+        printf("\n\nSample %d Thread: %d \n", sample_i, threadIdx.x+blockIdx.x*blockDim.x);
+        printf("Sample %d length^2 %f betaV %f importance %f gain %f \n", sample_i, threadIdx.x+blockIdx.x*blockDim.x, ray.length*ray.length, mesh.getBetaVolume(startPrism), importance[startPrism], gain);
+        printf("Sample %d rayNumber %d _startPrism %d _startLevel %d _startTriangle %d \n", sample_i, rayNumber, _startPrism, _startLevel, _startTriangle);
+        printf("Sample %d Vertex 0: %f, %f, %f \n", sample_i, v0.x, v0.y, v0.z);
+        printf("Sample %d Vertex 1: %f, %f, %f \n", sample_i, v1.x, v1.y, v1.z);
+        printf("Sample %d Vertex 2: %f, %f, %f \n", sample_i, v2.x, v2.y, v2.z);
+        printf("Sample %d startPt : %f, %f, %f \n", sample_i, _startPoint.x, _startPoint.y, _startPoint.z);
+        printf("Sample %d endPoint: %f, %f, %f \n", sample_i, samplePoint.x, samplePoint.y, samplePoint.z);
+        printf("Sample %d rayLength: %f (SMALL is %f) \n", sample_i, ray.length, SMALL);
+        printf("Sample %d is Point in Prism? %s\n", sample_i, mesh.isPointInPrism(_startPoint, _startTriangle, _startLevel) ? "yes" : "no");
+        printf("Sample %d is Destination a Vertex?? %s\n", sample_i, mesh.isVertexOfPrism(samplePoint, _startTriangle, _startLevel) ? "yes" : "no");
+        printf("Sample %d is Destination in Prism? %s\n", sample_i, mesh.isPointInPrism(samplePoint, _startTriangle, _startLevel) ? "yes" : "no");
+        printf("Sample %d ScriptInput: %.20f %.20f %.20f  %.20f %.20f %.20f  %.20f %.20f %.20f  %.20f %.20f %.20f  %.20f %.20f %.20f \n", sample_i, 
+                v0.x, v0.y, v0.z,
+                v1.x, v1.y, v1.z,
+                v2.x, v2.y, v2.z,
+                _startPoint.x, _startPoint.y, _startPoint.z,
+                samplePoint.x, samplePoint.y, samplePoint.z
+              );
+
+    }
 
   }
   atomicAdd(&(gainSum[0]), float(gainSumTemp));

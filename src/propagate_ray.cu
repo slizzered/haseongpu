@@ -198,7 +198,7 @@ __device__ double propagateRay(Ray nextRay, unsigned *nextLevel, unsigned *nextT
 
   // Length to small, could be same points
   if(distanceTotal < SMALL)
-     return 1;
+     return 1; //TODO: This should be 0, since there is NO gain! Might give Problems with reflection-code... (1 is the neutral element for multiplication)
 
   nextRay = normalizeRay(nextRay);
   while(fabs(distanceRemaining) > SMALL){

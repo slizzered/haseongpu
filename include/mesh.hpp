@@ -183,6 +183,10 @@ class Mesh {
   __device__ Point getCenterPoint(unsigned triangle, unsigned level) const;
   __device__ int getForbiddenEdge(unsigned triangle, int edge) const;
   __device__ unsigned getCellType(unsigned triangle) const;
+  __device__ Point getVertexCoordinates(const unsigned triangle, const unsigned level, const unsigned vertex) const;
+  __device__ bool isPointInPrism(const Point p, const unsigned triangle, const unsigned level) const;
+  __device__ bool isVertexOfPrism(const Point p, const unsigned triangle, const unsigned level) const;
+  __device__ bool isPointInTriangle(const Point p, const unsigned triangle) const;
 
 
   unsigned getMaxReflections(ReflectionPlane reflectionPlane) const;

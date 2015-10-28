@@ -88,7 +88,7 @@ float calcPhiAse ( const ExperimentParameters& experiment,
   unsigned reflectionSlices       = 1 + (2 * maxReflections);
   // In some cases distributeRandomly has to be true !
   // Otherwise bad or no ray distribution possible.
-  bool distributeRandomly         = true;
+  bool distributeRandomly         = false;
   dim3 blockDim(128);             //can't be more than 256 due to restrictions from the Mersenne Twister
                                   // MUST be 128, since in the kernel we use a bitshift << 7
   dim3 gridDim(200);              //can't be more than 200 due to restrictions from the Mersenne Twister
@@ -163,7 +163,9 @@ float calcPhiAse ( const ExperimentParameters& experiment,
 							    distributeRandomly,
 							    blockDim,
 							    gridDim);
-          
+
+    //std::cout << "hRaysPerSampleDump " << hRaysPerSampleDump << std::endl;
+
 	// Prism scheduling for gpu threads
 	mapRaysToPrisms(dIndicesOfPrisms, dNumberOfReflectionSlices, dRaysPerPrism, dPrefixSum, reflectionSlices, hRaysPerSampleDump, mesh.numberOfPrisms);
 
@@ -213,13 +215,20 @@ float calcPhiAse ( const ExperimentParameters& experiment,
 	  result.phiAse.at(sample_i)   /= *raysPerSampleIter * 4.0f * M_PI;
 	  result.totalRays.at(sample_i) = *raysPerSampleIter;
 	}
-	if(result.mse.at(sample_i) < experiment.mseThreshold) mseTooHigh = false;
-      }
+    if(result.mse.at(sample_i) < experiment.mseThreshold) mseTooHigh = false;
+    else {
+        if(run < compute.maxRepetitions)
+            std::cout << "\nrepetition, MSE was " << result.mse.at(sample_i) << std::endl; 
+    }
+  }
+
+
 
       // Increase rays per sample or break, when mseThreshold was not met
       raysPerSampleIter++;
       if(raysPerSampleIter == raysPerSampleList.end())
 	break;
+      if(mseTooHigh) std::cout << "\nAdaptive Step, MSE was" << result.mse.at(sample_i) << std::endl;
       
 	  
     }

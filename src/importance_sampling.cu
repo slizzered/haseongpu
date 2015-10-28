@@ -47,7 +47,7 @@ __global__ void propagateFromTriangleCenter(const Mesh mesh,
 					    const double sigmaE
 					    ){
 
-  double gain = 0;
+  double gain = 0.;
   unsigned reflection_i = blockIdx.z;
   unsigned reflections = (reflection_i + 1) / 2;
   ReflectionPlane reflectionPlane  = (reflection_i % 2 == 0)? BOTTOM_REFLECTION : TOP_REFLECTION;
@@ -62,7 +62,19 @@ __global__ void propagateFromTriangleCenter(const Mesh mesh,
   Point samplePoint = mesh.getSamplePoint(sample_i);
   unsigned reflectionOffset = reflection_i * mesh.numberOfPrisms;
 
+  double length = distance(startPoint, samplePoint);
+  bool isSamePrism = mesh.isVertexOfPrism(samplePoint, startTriangle, startLevel);
+  /* if(isSamePrism && sample_i==3){ */
+  /*   printf("\nSample_i: %d startTriangle %d startLevel %d startPrism %d\n", sample_i, startTriangle, startLevel, startPrism); */
+  /* } */
   gain = propagateRayWithReflection(startPoint, samplePoint, reflections, reflectionPlane, startLevel, startTriangle, mesh, sigmaA, sigmaE); 
+  /* Ray ray = generateRay(startPoint, samplePoint); */
+  /* gain = propagateRay(ray, &startLevel, &startTriangle, mesh, sigmaA, sigmaE); */ 
+  if(isSamePrism){
+    gain = gain*0.001;
+  }else if(length < 0.01){
+    gain = gain*length;
+  }
   importance[startPrism + reflectionOffset] = mesh.getBetaVolume(startPrism) * gain;
   if(mesh.getBetaVolume(startPrism) < 0 || gain < 0 || importance[startPrism+reflectionOffset] < 0){
     printf("beta: %f importance: %f gain: %f\n", mesh.getBetaVolume(startPrism), importance[startPrism + reflectionOffset], gain);
